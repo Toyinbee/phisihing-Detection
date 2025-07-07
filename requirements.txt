@@ -1,0 +1,10 @@
+streamlit
+numpy
+pandas
+tldextract
+requests
+beautifulsoup4
+scikit-learn
+xgboost
+tensorflow
+python-whois
