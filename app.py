@@ -14,7 +14,7 @@ import ssl
 import certifi
 from urllib.parse import urlparse
 from bs4 import BeautifulSoup
-from tensorflow.keras.models import load_model
+from keras.models import load_model  # ✅ Only Keras
 
 # Load models and scaler
 scaler = joblib.load("scaler.pkl")
@@ -23,12 +23,12 @@ lstm_model = load_model("lstm_model.h5")
 xgb_model = joblib.load("xgb_model.pkl")
 meta_model = load_model("meta_model.h5")
 
-# -------------------------------
-# Helper Functions
-# -------------------------------
+# -----------------------------------
+# 🔧 Utility Functions
+# -----------------------------------
 def get_entropy(string):
     prob = [float(string.count(c)) / len(string) for c in dict.fromkeys(list(string))]
-    return -sum([p * math.log(p) / math.log(2.0) for p in prob]) if prob else 0
+    return -sum([p * math.log(p, 2) for p in prob]) if prob else 0
 
 def is_ip(domain):
     try:
@@ -87,7 +87,7 @@ def check_ssl_certificate(url):
         with ctx.wrap_socket(socket.socket(), server_hostname=hostname) as s:
             s.settimeout(3)
             s.connect((hostname, 443))
-            cert = s.getpeercert()
+            s.getpeercert()
         return True
     except:
         return False
@@ -97,78 +97,77 @@ def get_page_info(url):
         r = requests.get(url, timeout=5, allow_redirects=True)
         soup = BeautifulSoup(r.text, 'html.parser')
         title = soup.title.string.strip() if soup.title else "No Title"
-        keywords = ["login", "verify", "account", "secure", "password", "update", "signin", "security"]
         text = soup.get_text().lower()
-        content_flag = int(any(k in text for k in keywords))
-        return content_flag, title, len(r.history)
+        keywords = ["login", "verify", "account", "secure", "password", "update", "signin", "security"]
+        flag = int(any(k in text for k in keywords))
+        return flag, title, len(r.history)
     except:
         return 0, "Not Reachable", 0
 
-# -------------------------------
-# Streamlit Interface
-# -------------------------------
-st.set_page_config(page_title="Phishing Detection App", layout="centered")
-st.title("🛡️ Real-Time Phishing Detection")
-st.markdown("Paste any URL below to check whether it's **Legitimate**, **Suspicious**, or **Phishing**.")
+# -----------------------------------
+# 🚨 Streamlit App
+# -----------------------------------
+st.set_page_config(page_title="Phishing Detection", layout="centered")
+st.title("🔍 Real-Time Phishing Detection App")
+st.markdown("Paste a URL below to check if it's **legit**, **suspicious**, or **phishing**.")
 
-url = st.text_input("🔗 Paste the URL here:")
+url = st.text_input("🔗 Enter URL:")
 if st.button("Analyze URL"):
     if not url:
-        st.warning("Please paste a URL.")
+        st.warning("⚠️ Please enter a URL to analyze.")
     else:
         with st.spinner("Analyzing..."):
             parsed = urlparse(url)
             domain = parsed.hostname
-            https = url.lower().startswith("https://")
+            uses_https = url.lower().startswith("https://")
             ip_used = is_ip(domain)
-            ssl_cert = check_ssl_certificate(url)
+            ssl_ok = check_ssl_certificate(url)
             domain_age = get_domain_age(domain)
             content_flag, page_title, redirects = get_page_info(url)
 
             features = extract_features(url)
             if features is None:
-                st.error("❌ Failed to extract features from the URL.")
+                st.error("❌ Feature extraction failed.")
                 st.stop()
+
             scaled = scaler.transform(features)
-            cnn_input = scaled.reshape(scaled.shape[0], scaled.shape[1], 1)
-            lstm_input = scaled.reshape(scaled.shape[0], 1, scaled.shape[1])
+            cnn_in = scaled.reshape(scaled.shape[0], scaled.shape[1], 1)
+            lstm_in = scaled.reshape(scaled.shape[0], 1, scaled.shape[1])
 
-            cnn_prob = cnn_model.predict(cnn_input)[0][0]
-            lstm_prob = lstm_model.predict(lstm_input)[0][0]
-            xgb_prob = xgb_model.predict_proba(scaled)[0][1]
+            cnn_pred = cnn_model.predict(cnn_in, verbose=0)[0][0]
+            lstm_pred = lstm_model.predict(lstm_in, verbose=0)[0][0]
+            xgb_pred = xgb_model.predict_proba(scaled)[0][1]
 
-            meta_input = np.array([[cnn_prob, lstm_prob, xgb_prob]])
-            final_prob = meta_model.predict(meta_input)[0][0]
-            confidence = round(final_prob * 100, 2)
+            meta_in = np.array([[cnn_pred, lstm_pred, xgb_pred]])
+            final_pred = meta_model.predict(meta_in, verbose=0)[0][0]
+            confidence = round(final_pred * 100, 2)
 
-            # Decision logic
-            if final_prob >= 0.70:
+            # Decision
+            if final_pred >= 0.7:
                 verdict = "🛑 Phishing"
-                explanation = "The system is confident this is a **phishing site**."
-            elif 0.40 <= final_prob < 0.70 or domain_age < 30 or content_flag:
+                explanation = "This site strongly resembles a phishing site."
+            elif 0.4 <= final_pred < 0.7 or domain_age < 30 or content_flag:
                 verdict = "⚠️ Suspicious"
-                explanation = "There are **some red flags**: new domain, suspicious content, or unclear security."
+                explanation = "Some signs of phishing detected. Be cautious."
             else:
                 verdict = "✅ Legitimate"
-                explanation = "The system is confident this is a **safe and trusted site**."
+                explanation = "The system believes this site is safe."
 
-        # Show Results
-        st.markdown(f"### 🔍 URL Analysis Result")
-        st.write(f"📆 Domain Age: `{domain_age} days`")
-        st.write(f"🔐 HTTPS: {'✅' if https else '❌'}")
-        st.write(f"🔐 SSL Certificate: {'✅' if ssl_cert else '❌'}")
-        st.write(f"🌐 IP Address Used: {'✅' if ip_used else '❌'}")
-        st.write(f"🔁 Redirects: `{redirects}`")
-        st.write(f"🧠 Page Title: `{page_title}`")
-        st.write(f"🔍 Content Scan: `{'Suspicious' if content_flag else 'Clean'}`")
+            # Output
+            st.subheader("📋 Result")
+            st.write(f"📆 Domain Age: `{domain_age} days`")
+            st.write(f"🔐 HTTPS: {'✅' if uses_https else '❌'}")
+            st.write(f"🔐 SSL Certificate: {'✅' if ssl_ok else '❌'}")
+            st.write(f"🌐 IP Used: {'✅' if ip_used else '❌'}")
+            st.write(f"🔁 Redirects: `{redirects}`")
+            st.write(f"🧠 Page Title: `{page_title}`")
+            st.write(f"🔍 Content Scan: `{'Suspicious' if content_flag else 'Clean'}`")
 
-        st.markdown("---")
-        st.write(f"📊 CNN Confidence (Phishing Probability): **{cnn_prob*100:.2f}%**")
-        st.write(f"📊 LSTM Confidence (Phishing Probability): **{lstm_prob*100:.2f}%**")
-        st.write(f"📊 XGBoost Confidence (Phishing Probability): **{xgb_prob*100:.2f}%**")
+            st.markdown("---")
+            st.write(f"📊 CNN Confidence: **{cnn_pred * 100:.2f}%**")
+            st.write(f"📊 LSTM Confidence: **{lstm_pred * 100:.2f}%**")
+            st.write(f"📊 XGBoost Confidence: **{xgb_pred * 100:.2f}%**")
 
-        st.markdown("## 🧠 Final Verdict")
-        st.success(f"{verdict} — Confidence: **{confidence}%**")
-        st.markdown(f"💬 _Explanation_: {explanation}")
-
-
+            st.markdown("## 🧠 Final Verdict")
+            st.success(f"{verdict} — Confidence: **{confidence}%**")
+            st.markdown(f"💬 _Explanation_: {explanation}")
