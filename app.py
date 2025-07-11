@@ -14,7 +14,7 @@ import ssl
 import certifi
 from urllib.parse import urlparse
 from bs4 import BeautifulSoup
-import keras
+from tensorflow.keras.models import load_model
 
 # Load models and scaler
 scaler = joblib.load("scaler.pkl")
@@ -170,3 +170,55 @@ if st.button("Analyze URL"):
         st.markdown("## 🧠 Final Verdict")
         st.success(f"{verdict} — Confidence: **{confidence}%**")
         st.markdown(f"💬 _Explanation_: {explanation}")
+
+
+Here’s your complete and fixed setup:
+
+
+---
+
+✅ app.py (updated and deployed-ready):
+
+The updated code is now saved in your canvas.
+
+
+---
+
+✅ requirements.txt:
+
+Use this version for successful Streamlit deployment without hardcoding Python version:
+
+streamlit==1.27.2
+tensorflow==2.12.0
+scikit-learn==1.2.2
+xgboost==1.7.6
+tldextract==3.4.4
+requests==2.31.0
+beautifulsoup4==4.12.2
+joblib==1.3.2
+python-whois==0.8.0
+certifi==2023.11.17
+
+📌 Avoid this line in your requirements file:
+
+python_version==3.10  # ❌ Remove this line
+
+It’s the main reason Streamlit deployment failed before.
+
+
+---
+
+✅ Next Steps:
+
+1. Push updated app.py and requirements.txt to your GitHub repo.
+
+
+2. Go to Streamlit → "Deploy" → Link to your repo.
+
+
+3. Done! Your app should now deploy without errors.
+
+
+
+If you want to move forward with the adaptation module, let me know and I’ll help you integrate it cleanly.
+
