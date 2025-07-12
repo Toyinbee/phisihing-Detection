@@ -18,10 +18,10 @@ from keras.models import load_model  # ✅ Only Keras
 
 # Load models and scaler
 scaler = joblib.load("scaler.pkl")
-cnn_model = load_model("cnn_model.h5")
-lstm_model = load_model("lstm_model.h5")
+cnn_model = load_model("cnn_model.keras")
+lstm_model = load_model("lstm_model.keras")
 xgb_model = joblib.load("xgb_model.pkl")
-meta_model = load_model("meta_model.h5")
+meta_model = load_model("meta_model.keras")
 
 # -----------------------------------
 # 🔧 Utility Functions
