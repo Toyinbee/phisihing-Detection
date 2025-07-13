@@ -14,7 +14,7 @@ import ssl
 import certifi
 from urllib.parse import urlparse
 from bs4 import BeautifulSoup
-from keras.models import load_model  # ✅ Only Keras
+from tensorflow.keras.models import load_model  
 
 # Load models and scaler
 scaler = joblib.load("scaler.pkl")
