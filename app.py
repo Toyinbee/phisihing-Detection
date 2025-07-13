@@ -7,12 +7,11 @@ import math
 import time
 import requests
 import socket
-import joblib
+import cloudpickle
 import whois
 import ssl
 import certifi
 import tensorflow as tf
-import cloudpickle
 from urllib.parse import urlparse
 from bs4 import BeautifulSoup
 from tensorflow.keras.models import load_model
@@ -29,7 +28,7 @@ cnn_model = load_model("cnn_model.keras")
 lstm_model = load_model("lstm_model.keras")
 meta_model = load_model("meta_model.keras")
 
-# Load XGBoost (cloudpickle)
+# Load XGBoost model
 with open("xgb_model.pkl", "rb") as f:
     xgb_model = cloudpickle.load(f)
 
@@ -37,7 +36,7 @@ with open("xgb_model.pkl", "rb") as f:
 # 🔧 Utility Functions
 # -------------------------------
 def get_entropy(string):
-    prob = [float(string.count(c)) / len(string) for c in dict.fromkeys(list(string))]
+    prob = [float(string.count(c)) / len(string) for c in dict.fromkeys(string)]
     return -sum([p * math.log(p, 2) for p in prob]) if prob else 0
 
 def is_ip(domain):
