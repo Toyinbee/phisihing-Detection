@@ -13,20 +13,30 @@ import whois
 import ssl
 import certifi
 import tensorflow as tf
+import cloudpickle
 from urllib.parse import urlparse
 from bs4 import BeautifulSoup
-from tensorflow.keras.models import load_model  
+from tensorflow.keras.models import load_model
 
-# Load models and scaler
-scaler = joblib.load("scaler.pkl")
+# -------------------------------
+# 📦 Load models and scaler
+# -------------------------------
+# Load scaler
+with open("scaler.pkl", "rb") as f:
+    scaler = cloudpickle.load(f)
+
+# Load models
 cnn_model = load_model("cnn_model.keras")
 lstm_model = load_model("lstm_model.keras")
-xgb_model = joblib.load("xgb_model.pkl")
 meta_model = load_model("meta_model.keras")
 
-# -----------------------------------
+# Load XGBoost (cloudpickle)
+with open("xgb_model.pkl", "rb") as f:
+    xgb_model = cloudpickle.load(f)
+
+# -------------------------------
 # 🔧 Utility Functions
-# -----------------------------------
+# -------------------------------
 def get_entropy(string):
     prob = [float(string.count(c)) / len(string) for c in dict.fromkeys(list(string))]
     return -sum([p * math.log(p, 2) for p in prob]) if prob else 0
@@ -105,9 +115,9 @@ def get_page_info(url):
     except:
         return 0, "Not Reachable", 0
 
-# -----------------------------------
-# 🚨 Streamlit App
-# -----------------------------------
+# -------------------------------
+# 🚀 Streamlit App
+# -------------------------------
 st.set_page_config(page_title="Phishing Detection", layout="centered")
 st.title("🔍 Real-Time Phishing Detection App")
 st.markdown("Paste a URL below to check if it's **legit**, **suspicious**, or **phishing**.")
@@ -132,18 +142,17 @@ if st.button("Analyze URL"):
                 st.stop()
 
             scaled = scaler.transform(features)
-            cnn_in = scaled.reshape(scaled.shape[0], scaled.shape[1], 1)
-            lstm_in = scaled.reshape(scaled.shape[0], 1, scaled.shape[1])
+            cnn_input = scaled.reshape(scaled.shape[0], scaled.shape[1], 1)
+            lstm_input = scaled.reshape(scaled.shape[0], 1, scaled.shape[1])
 
-            cnn_pred = cnn_model.predict(cnn_in, verbose=0)[0][0]
-            lstm_pred = lstm_model.predict(lstm_in, verbose=0)[0][0]
+            cnn_pred = cnn_model.predict(cnn_input, verbose=0)[0][0]
+            lstm_pred = lstm_model.predict(lstm_input, verbose=0)[0][0]
             xgb_pred = xgb_model.predict_proba(scaled)[0][1]
 
-            meta_in = np.array([[cnn_pred, lstm_pred, xgb_pred]])
-            final_pred = meta_model.predict(meta_in, verbose=0)[0][0]
+            meta_input = np.array([[cnn_pred, lstm_pred, xgb_pred]])
+            final_pred = meta_model.predict(meta_input, verbose=0)[0][0]
             confidence = round(final_pred * 100, 2)
 
-            # Decision
             if final_pred >= 0.7:
                 verdict = "🛑 Phishing"
                 explanation = "This site strongly resembles a phishing site."
