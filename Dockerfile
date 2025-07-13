@@ -1,20 +1,19 @@
-# Use official Python base image
-FROM python:3.10
+# Use official Python base image with slim size for better compatibility
+FROM python:3.10-slim
 
-# Set environment variables
-ENV PYTHONDONTWRITEBYTECODE 1
-ENV PYTHONUNBUFFERED 1
+# Set environment variables to disable .pyc files and enable live logs
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
 
 # Set working directory
 WORKDIR /app
 
-# Copy app code
+# Copy all app files
 COPY . /app
 
-# Install system dependencies
+# Install system dependencies needed for some packages
 RUN apt-get update && apt-get install -y \
     build-essential \
-    curl \
     libssl-dev \
     libffi-dev \
     libxml2-dev \
@@ -22,13 +21,17 @@ RUN apt-get update && apt-get install -y \
     libjpeg-dev \
     zlib1g-dev \
     libmagic-dev \
+    curl \
+    && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
-# Install Python dependencies
+# Upgrade pip
 RUN pip install --upgrade pip
-RUN pip install -r requirements.txt
 
-# Expose Streamlit default port
+# Install Python packages from requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Expose Streamlit's default port
 EXPOSE 8501
 
 # Run the Streamlit app
