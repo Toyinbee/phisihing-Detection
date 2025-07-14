@@ -6,20 +6,29 @@ import math
 import time
 import requests
 import socket
-import joblib
 import whois
 import ssl
 import certifi
 import tensorflow as tf
+import xgboost as xgb
 from urllib.parse import urlparse
 from bs4 import BeautifulSoup
+from sklearn.preprocessing import StandardScaler
 from tensorflow.keras.models import load_model
 
 # -------------------------------
-# 📦 Load Models and Scaler
+# 📦 Load Scaler and Models
 # -------------------------------
-scaler = joblib.load("scaler.pkl")
-xgb_model = joblib.load("xgb_model.pkl")
+# Load scaler from .npy
+scaler = StandardScaler()
+params = np.load("scaler_params.npy", allow_pickle=True)
+scaler.mean_, scaler.scale_ = params
+
+# Load XGBoost model
+xgb_model = xgb.XGBClassifier()
+xgb_model.load_model("xgb_model.json")
+
+# Load neural network models
 cnn_model = load_model("cnn_model.keras")
 lstm_model = load_model("lstm_model.keras")
 meta_model = load_model("meta_model.keras")
@@ -153,7 +162,6 @@ if st.button("Analyze URL"):
                 verdict = "✅ Legitimate"
                 explanation = "This website appears to be safe."
 
-            # Display result
             st.subheader("📋 Analysis Summary")
             st.write(f"📆 Domain Age: `{domain_age} days`")
             st.write(f"🔐 HTTPS: {'✅' if https else '❌'}")
