@@ -161,7 +161,7 @@ if st.button("Analyze URL"):
             else:
                 st.info("ℹ️ Baseline not available. Skipping drift detection.")
 
-            # 🔮 Prediction Phase
+            # 🧑‍💻 Prediction Phase
             cnn_input = scaled.reshape(scaled.shape[0], scaled.shape[1], 1)
             lstm_input = scaled.reshape(scaled.shape[0], 1, scaled.shape[1])
             cnn_prob = cnn_model.predict(cnn_input, verbose=0)[0][0]
@@ -184,7 +184,7 @@ if st.button("Analyze URL"):
 
             # 📋 Show results
             st.subheader("📋 Analysis Summary")
-            st.write(f"📆 Domain Age: `{domain_age} days`")
+            st.write(f"🗖️ Domain Age: `{domain_age} days`")
             st.write(f"🔐 HTTPS: {'✅' if https else '❌'}")
             st.write(f"🔐 SSL Certificate: {'✅' if ssl_cert else '❌'}")
             st.write(f"🌐 IP Used: {'✅' if ip_used else '❌'}")
@@ -201,9 +201,7 @@ if st.button("Analyze URL"):
             st.success(f"{verdict} — Confidence: **{confidence}%**")
             st.markdown(f"💬 _Explanation_: {explanation}")
 
-            # -------------------------------
-            # 📝 Feedback Section
-            # -------------------------------
+            # 📝 Feedback
             st.markdown("### 📝 Help us improve!")
             user_feedback = st.radio("Was this prediction correct?", ("Yes", "No"))
 
@@ -228,24 +226,27 @@ if st.button("Analyze URL"):
                 df.to_csv(feedback_path, index=False)
                 st.success("✅ Feedback recorded! Thank you.")
 
-# -------------------------------
-# 🔄 Update XGBoost Model Section
-# -------------------------------
-st.markdown("### 🛠️ Update XGBoost Model")
-if st.button("Update XGBoost"):
-    try:
-        update_path = "data/new_data.csv"
-        if not os.path.exists(update_path):
-            st.warning("⚠️ No new feedback data found.")
-        else:
-            df_update = pd.read_csv(update_path)
-            X_new = np.array(df_update["features"].apply(eval).tolist())
-            y_new = np.array(df_update["true_label"])
-            X_new_scaled = scaler.transform(X_new)
+# 🔧 Developer Tools Section
+st.sidebar.markdown("### 👨‍💻 Developer Tools")
+dev_mode = st.sidebar.checkbox("Enable Developer Mode")
 
-            xgb_model.fit(X_new_scaled, y_new)
-            xgb_model.save_model("xgb_model.json")
-            st.success("✅ XGBoost model updated successfully!")
+if dev_mode:
+    st.markdown("### 🔧 Update XGBoost Model")
+    if st.button("Update XGBoost"):
+        try:
+            update_path = "data/new_data.csv"
+            if not os.path.exists(update_path):
+                st.warning("⚠️ No new feedback data found.")
+            else:
+                df_update = pd.read_csv(update_path)
+                X_new = np.array(df_update["features"].apply(eval).tolist())
+                y_new = np.array(df_update["true_label"])
+                X_new_scaled = scaler.transform(X_new)
 
-    except Exception as e:
-        st.error(f"❌ Failed to update model: {e}")
+                xgb_model.fit(X_new_scaled, y_new)
+                xgb_model.save_model("xgb_model.json")
+                st.success("✅ XGBoost model updated successfully!")
+
+        except Exception as e:
+            st.error(f"❌ Failed to update model: {e}")
+        
