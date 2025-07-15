@@ -16,7 +16,7 @@ import xgboost as xgb
 from urllib.parse import urlparse
 from bs4 import BeautifulSoup
 from sklearn.preprocessing import StandardScaler
-from scipy.stats import ks_2samp  # for drift detection
+from scipy.stats import ks_2samp
 from tensorflow.keras.models import load_model
 
 # -------------------------------
@@ -32,6 +32,9 @@ xgb_model.load_model("xgb_model.json")
 cnn_model = load_model("cnn_model.keras")
 lstm_model = load_model("lstm_model.keras")
 meta_model = load_model("meta_model.keras")
+
+baseline_path = "data/baseline_features_sampled.npy"
+baseline = np.load(baseline_path) if os.path.exists(baseline_path) else None
 
 # -------------------------------
 # 🔧 Utility Functions
@@ -142,27 +145,23 @@ if st.button("Analyze URL"):
 
             scaled = scaler.transform(features)
 
-            # -------------------------------
-            # 📈 Feature Drift Detection
-            # -------------------------------
-            baseline_path = "data/baseline_features.npy"
-            if os.path.exists(baseline_path):
+            # 📈 Drift Detection
+            if baseline is not None:
                 try:
-                    baseline = np.load(baseline_path)
                     drift_flags = []
                     for i in range(scaled.shape[1]):
                         stat, p = ks_2samp(scaled[:, i], baseline[:, i])
                         drift_flags.append(p < 0.05)
                     if any(drift_flags):
-                        st.warning("⚠️ Feature drift detected! Input distribution has changed.")
+                        st.warning("⚠️ Feature drift detected! Model may need retraining.")
                     else:
                         st.info("✅ No feature drift detected.")
                 except Exception as e:
                     st.error(f"❌ Drift detection failed: {e}")
             else:
-                st.info("ℹ️ Baseline not found. Skipping drift detection.")
+                st.info("ℹ️ Baseline not available. Skipping drift detection.")
 
-            # Model Predictions
+            # 🔮 Prediction Phase
             cnn_input = scaled.reshape(scaled.shape[0], scaled.shape[1], 1)
             lstm_input = scaled.reshape(scaled.shape[0], 1, scaled.shape[1])
             cnn_prob = cnn_model.predict(cnn_input, verbose=0)[0][0]
@@ -183,7 +182,7 @@ if st.button("Analyze URL"):
                 verdict = "✅ Legitimate"
                 explanation = "This website appears to be safe."
 
-            # Show results
+            # 📋 Show results
             st.subheader("📋 Analysis Summary")
             st.write(f"📆 Domain Age: `{domain_age} days`")
             st.write(f"🔐 HTTPS: {'✅' if https else '❌'}")
@@ -228,3 +227,25 @@ if st.button("Analyze URL"):
 
                 df.to_csv(feedback_path, index=False)
                 st.success("✅ Feedback recorded! Thank you.")
+
+# -------------------------------
+# 🔄 Update XGBoost Model Section
+# -------------------------------
+st.markdown("### 🛠️ Update XGBoost Model")
+if st.button("Update XGBoost"):
+    try:
+        update_path = "data/new_data.csv"
+        if not os.path.exists(update_path):
+            st.warning("⚠️ No new feedback data found.")
+        else:
+            df_update = pd.read_csv(update_path)
+            X_new = np.array(df_update["features"].apply(eval).tolist())
+            y_new = np.array(df_update["true_label"])
+            X_new_scaled = scaler.transform(X_new)
+
+            xgb_model.fit(X_new_scaled, y_new)
+            xgb_model.save_model("xgb_model.json")
+            st.success("✅ XGBoost model updated successfully!")
+
+    except Exception as e:
+        st.error(f"❌ Failed to update model: {e}")
