@@ -16,6 +16,7 @@ import xgboost as xgb
 from urllib.parse import urlparse
 from bs4 import BeautifulSoup
 from sklearn.preprocessing import StandardScaler
+from scipy.stats import ks_2samp  # for drift detection
 from tensorflow.keras.models import load_model
 
 # -------------------------------
@@ -140,9 +141,30 @@ if st.button("Analyze URL"):
                 st.stop()
 
             scaled = scaler.transform(features)
+
+            # -------------------------------
+            # 📈 Feature Drift Detection
+            # -------------------------------
+            baseline_path = "data/baseline_features.npy"
+            if os.path.exists(baseline_path):
+                try:
+                    baseline = np.load(baseline_path)
+                    drift_flags = []
+                    for i in range(scaled.shape[1]):
+                        stat, p = ks_2samp(scaled[:, i], baseline[:, i])
+                        drift_flags.append(p < 0.05)
+                    if any(drift_flags):
+                        st.warning("⚠️ Feature drift detected! Input distribution has changed.")
+                    else:
+                        st.info("✅ No feature drift detected.")
+                except Exception as e:
+                    st.error(f"❌ Drift detection failed: {e}")
+            else:
+                st.info("ℹ️ Baseline not found. Skipping drift detection.")
+
+            # Model Predictions
             cnn_input = scaled.reshape(scaled.shape[0], scaled.shape[1], 1)
             lstm_input = scaled.reshape(scaled.shape[0], 1, scaled.shape[1])
-
             cnn_prob = cnn_model.predict(cnn_input, verbose=0)[0][0]
             lstm_prob = lstm_model.predict(lstm_input, verbose=0)[0][0]
             xgb_prob = xgb_model.predict_proba(scaled)[0][1]
@@ -161,7 +183,7 @@ if st.button("Analyze URL"):
                 verdict = "✅ Legitimate"
                 explanation = "This website appears to be safe."
 
-            # Display Results
+            # Show results
             st.subheader("📋 Analysis Summary")
             st.write(f"📆 Domain Age: `{domain_age} days`")
             st.write(f"🔐 HTTPS: {'✅' if https else '❌'}")
@@ -197,13 +219,12 @@ if st.button("Analyze URL"):
                     "true_label": label if correct else int(not label)
                 }
 
-                feedback_path = "new_data.csv"
+                feedback_path = "data/new_data.csv"
                 if os.path.exists(feedback_path):
                     df = pd.read_csv(feedback_path)
-                    df = df.append(new_data_row, ignore_index=True)
+                    df = pd.concat([df, pd.DataFrame([new_data_row])], ignore_index=True)
                 else:
                     df = pd.DataFrame([new_data_row])
 
                 df.to_csv(feedback_path, index=False)
                 st.success("✅ Feedback recorded! Thank you.")
-
