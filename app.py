@@ -1,11 +1,13 @@
 import streamlit as st
 import numpy as np
+import pandas as pd
 import tldextract
 import re
 import math
 import time
 import requests
 import socket
+import os
 import whois
 import ssl
 import certifi
@@ -19,16 +21,13 @@ from tensorflow.keras.models import load_model
 # -------------------------------
 # 📦 Load Scaler and Models
 # -------------------------------
-# Load scaler from .npy
 scaler = StandardScaler()
 params = np.load("scaler_params.npy", allow_pickle=True)
 scaler.mean_, scaler.scale_ = params
 
-# Load XGBoost model
 xgb_model = xgb.XGBClassifier()
 xgb_model.load_model("xgb_model.json")
 
-# Load neural network models
 cnn_model = load_model("cnn_model.keras")
 lstm_model = load_model("lstm_model.keras")
 meta_model = load_model("meta_model.keras")
@@ -115,7 +114,7 @@ def get_page_info(url):
         return 0, "Not Reachable", 0
 
 # -------------------------------
-# 🚀 Streamlit Interface
+# 🚀 Streamlit App
 # -------------------------------
 st.set_page_config(page_title="Phishing Detection", layout="centered")
 st.title("🛡️ Real-Time Phishing Detection App")
@@ -162,6 +161,7 @@ if st.button("Analyze URL"):
                 verdict = "✅ Legitimate"
                 explanation = "This website appears to be safe."
 
+            # Display Results
             st.subheader("📋 Analysis Summary")
             st.write(f"📆 Domain Age: `{domain_age} days`")
             st.write(f"🔐 HTTPS: {'✅' if https else '❌'}")
@@ -179,3 +179,31 @@ if st.button("Analyze URL"):
             st.markdown("## 🧠 Final Verdict")
             st.success(f"{verdict} — Confidence: **{confidence}%**")
             st.markdown(f"💬 _Explanation_: {explanation}")
+
+            # -------------------------------
+            # 📝 Feedback Section
+            # -------------------------------
+            st.markdown("### 📝 Help us improve!")
+            user_feedback = st.radio("Was this prediction correct?", ("Yes", "No"))
+
+            if st.button("Submit Feedback"):
+                label = 1 if verdict == "🛑 Phishing" else 0
+                correct = 1 if user_feedback == "Yes" else 0
+
+                new_data_row = {
+                    "url": url,
+                    "features": features.flatten().tolist(),
+                    "model_prediction": final_prob,
+                    "true_label": label if correct else int(not label)
+                }
+
+                feedback_path = "new_data.csv"
+                if os.path.exists(feedback_path):
+                    df = pd.read_csv(feedback_path)
+                    df = df.append(new_data_row, ignore_index=True)
+                else:
+                    df = pd.DataFrame([new_data_row])
+
+                df.to_csv(feedback_path, index=False)
+                st.success("✅ Feedback recorded! Thank you.")
+
