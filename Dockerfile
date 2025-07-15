@@ -1,15 +1,18 @@
-# Use official Python base image
-FROM python:3.10-slim
+# Use a Python base image
+FROM python:3.10
 
-# Set environment variables
+# Prevent Python from writing .pyc files
 ENV PYTHONDONTWRITEBYTECODE 1
 ENV PYTHONUNBUFFERED 1
 
 # Set working directory
 WORKDIR /app
 
-# Copy app code and models
+# Copy app files
 COPY . /app
+
+# Create writable volume for user feedback
+VOLUME /app/data
 
 # Install system dependencies
 RUN apt-get update && apt-get install -y \
@@ -24,11 +27,11 @@ RUN apt-get update && apt-get install -y \
     libmagic-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# Install Python dependencies
+# Upgrade pip and install Python dependencies
 RUN pip install --upgrade pip
 RUN pip install -r requirements.txt
 
-# Expose Streamlit port
+# Expose Streamlit's default port
 EXPOSE 8501
 
 # Run the Streamlit app
