@@ -250,3 +250,17 @@ if dev_mode:
         except Exception as e:
             st.error(f"❌ Failed to update model: {e}")
         
+# 📥 Developer-only download for new_data.csv
+if dev_mode:
+    st.markdown("### 🗃️ Download Feedback Data")
+    csv_path = "data/new_data.csv"
+    if os.path.exists(csv_path):
+        with open(csv_path, "rb") as f:
+            st.download_button(
+                label="📥 Download new_data.csv",
+                data=f,
+                file_name="new_data.csv",
+                mime="text/csv"
+            )
+    else:
+        st.info("ℹ️ No feedback data available yet.")
