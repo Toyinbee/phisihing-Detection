@@ -217,18 +217,20 @@ if st.button("Analyze URL"):
                     "model_prediction": final_prob,
                     "true_label": true_label
                 }
-                
-                # Make sure the data directory exists
-                os.makedirs("data", exist_ok=True)
-                feedback_path = "data/new_data.csv"
-                if os.path.exists(feedback_path):
-                    df = pd.read_csv(feedback_path)
-                    df = pd.concat([df, pd.DataFrame([new_data])], ignore_index=True)
-                else:
-                    df = pd.DataFrame([new_data])
 
-                df.to_csv(feedback_path, index=False)
-                st.success("✅ Feedback recorded! Thank you.")
+                feedback_path = "data/new_data.csv"
+                os.makedirs("data", exist_ok=True)
+
+                try:
+                    if os.path.exists(feedback_path):
+                        df = pd.read_csv(feedback_path)
+                        df = pd.concat([df, pd.DataFrame([new_data])], ignore_index=True)
+                    else:
+                        df = pd.DataFrame([new_data])
+                    df.to_csv(feedback_path, index=False)
+                    st.success("✅ Feedback recorded! Thank you.")
+                except Exception as e:
+                    st.error(f"❌ Could not save feedback: {e}")
 
 # -------------------------------
 # 👨‍💻 Developer Tools Section
