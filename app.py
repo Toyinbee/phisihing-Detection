@@ -121,10 +121,10 @@ def get_page_info(url):
 # 🚀 Streamlit App
 # -------------------------------
 st.set_page_config(page_title="Phishing Detection", layout="centered")
-st.title("🛡️ Real-Time Phishing Detection App")
-st.markdown("Paste a URL below to check whether it's **Legitimate**, **Suspicious**, or **Phishing**.")
+st.title("\U0001F6E1\uFE0F Real-Time Phishing Detection App")
+st.markdown("Paste a URL below to check whether it's Legitimate, Suspicious, or Phishing.")
 
-url = st.text_input("🔗 Paste URL here:")
+url = st.text_input("\U0001F517 Paste URL here:")
 if st.button("Analyze URL"):
     if not url:
         st.warning("Please enter a URL.")
@@ -145,7 +145,6 @@ if st.button("Analyze URL"):
 
             scaled = scaler.transform(features)
 
-            # 📈 Drift Detection
             if baseline is not None:
                 try:
                     drift_flags = []
@@ -161,7 +160,6 @@ if st.button("Analyze URL"):
             else:
                 st.info("ℹ️ Baseline not available. Skipping drift detection.")
 
-            # 🔮 Prediction Phase
             cnn_input = scaled.reshape(scaled.shape[0], scaled.shape[1], 1)
             lstm_input = scaled.reshape(scaled.shape[0], 1, scaled.shape[1])
             cnn_prob = cnn_model.predict(cnn_input, verbose=0)[0][0]
@@ -173,7 +171,6 @@ if st.button("Analyze URL"):
             phishing_conf = final_prob * 100
             legit_conf = 100 - phishing_conf
 
-            # 📊 Display Predictions
             st.subheader("📋 Analysis Summary")
             st.write(f"📆 Domain Age: `{domain_age} days`")
             st.write(f"🔐 HTTPS: {'✅' if https else '❌'}")
@@ -202,35 +199,40 @@ if st.button("Analyze URL"):
 
             st.markdown(f"💬 _Explanation_: {explanation}")
 
-            # 📝 Feedback Collection
-            st.markdown("### 📝 Help us improve!")
-            user_feedback = st.radio("Was this prediction correct?", ("Yes", "No"))
+            st.session_state["prediction_made"] = True
+            st.session_state["url"] = url
+            st.session_state["features"] = features
+            st.session_state["final_prob"] = float(final_prob)
 
-            if st.button("Submit Feedback"):
-                label = 1 if final_prob >= 0.7 else 0
-                correct = 1 if user_feedback == "Yes" else 0
-                true_label = label if correct else int(not label)
+if st.session_state.get("prediction_made"):
+    st.markdown("### 📝 Help us improve!")
+    user_feedback = st.radio("Was this prediction correct?", ("Yes", "No"), key="feedback")
 
-                new_data = {
-                    "url": url,
-                    "features": features.flatten().tolist(),
-                    "model_prediction": final_prob,
-                    "true_label": true_label
-                }
+    if st.button("Submit Feedback", key="submit_feedback"):
+        label = 1 if st.session_state["final_prob"] >= 0.7 else 0
+        correct = 1 if user_feedback == "Yes" else 0
+        true_label = label if correct else int(not label)
 
-                feedback_path = "data/new_data.csv"
-                os.makedirs("data", exist_ok=True)
+        new_data = {
+            "url": st.session_state["url"],
+            "features": st.session_state["features"].flatten().tolist(),
+            "model_prediction": st.session_state["final_prob"],
+            "true_label": true_label
+        }
 
-                try:
-                    if os.path.exists(feedback_path):
-                        df = pd.read_csv(feedback_path)
-                        df = pd.concat([df, pd.DataFrame([new_data])], ignore_index=True)
-                    else:
-                        df = pd.DataFrame([new_data])
-                    df.to_csv(feedback_path, index=False)
-                    st.success("✅ Feedback recorded! Thank you.")
-                except Exception as e:
-                    st.error(f"❌ Could not save feedback: {e}")
+        feedback_path = "data/new_data.csv"
+        os.makedirs("data", exist_ok=True)
+
+        try:
+            if os.path.exists(feedback_path):
+                df = pd.read_csv(feedback_path)
+                df = pd.concat([df, pd.DataFrame([new_data])], ignore_index=True)
+            else:
+                df = pd.DataFrame([new_data])
+            df.to_csv(feedback_path, index=False)
+            st.success("✅ Feedback recorded! Thank you.")
+        except Exception as e:
+            st.error(f"❌ Could not save feedback: {e}")
 
 # -------------------------------
 # 👨‍💻 Developer Tools Section
@@ -257,7 +259,6 @@ if dev_mode:
         except Exception as e:
             st.error(f"❌ Failed to update model: {e}")
 
-    # 📥 Download Button
     st.markdown("### 📥 Download Feedback Data")
     csv_path = "data/new_data.csv"
     if os.path.exists(csv_path):
@@ -267,6 +268,6 @@ if dev_mode:
                 data=f,
                 file_name="new_data.csv",
                 mime="text/csv"
-            )
+    )
     else:
         st.info("ℹ️ No feedback data available yet.")
