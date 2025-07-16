@@ -33,7 +33,6 @@ cnn_model = load_model("cnn_model.keras", compile=False)
 lstm_model = load_model("lstm_model.keras", compile=False)
 meta_model = load_model("meta_model.keras", compile=False)
 
-
 baseline_path = "data/baseline_features_sampled.npy"
 baseline = np.load(baseline_path) if os.path.exists(baseline_path) else None
 
@@ -162,7 +161,7 @@ if st.button("Analyze URL"):
             else:
                 st.info("ℹ️ Baseline not available. Skipping drift detection.")
 
-            # 🧑‍💻 Prediction Phase
+            # 🔮 Prediction Phase
             cnn_input = scaled.reshape(scaled.shape[0], scaled.shape[1], 1)
             lstm_input = scaled.reshape(scaled.shape[0], 1, scaled.shape[1])
             cnn_prob = cnn_model.predict(cnn_input, verbose=0)[0][0]
@@ -171,21 +170,12 @@ if st.button("Analyze URL"):
 
             meta_input = np.array([[cnn_prob, lstm_prob, xgb_prob]])
             final_prob = meta_model.predict(meta_input, verbose=0)[0][0]
-            confidence = round(final_prob * 100, 2)
+            phishing_conf = final_prob * 100
+            legit_conf = 100 - phishing_conf
 
-            if final_prob >= 0.7:
-                verdict = "🛑 Phishing"
-                explanation = "This site strongly resembles a phishing website."
-            elif 0.4 <= final_prob < 0.7 or domain_age < 30 or content_flag:
-                verdict = "⚠️ Suspicious"
-                explanation = "Some red flags detected. Please proceed with caution."
-            else:
-                verdict = "✅ Legitimate"
-                explanation = "This website appears to be safe."
-
-            # 📋 Show results
+            # 📊 Display Predictions
             st.subheader("📋 Analysis Summary")
-            st.write(f"🗖️ Domain Age: `{domain_age} days`")
+            st.write(f"📆 Domain Age: `{domain_age} days`")
             st.write(f"🔐 HTTPS: {'✅' if https else '❌'}")
             st.write(f"🔐 SSL Certificate: {'✅' if ssl_cert else '❌'}")
             st.write(f"🌐 IP Used: {'✅' if ip_used else '❌'}")
@@ -194,40 +184,53 @@ if st.button("Analyze URL"):
             st.write(f"🔍 Content Keywords: `{'Suspicious' if content_flag else 'Clean'}`")
 
             st.markdown("---")
-            st.write(f"📊 CNN Model Prediction: **{cnn_prob * 100:.2f}%**")
-            st.write(f"📊 LSTM Model Prediction: **{lstm_prob * 100:.2f}%**")
-            st.write(f"📊 XGBoost Prediction: **{xgb_prob * 100:.2f}%**")
+            st.markdown("### 📊 Model Confidence")
+            st.write(f"🧠 CNN Model: **{cnn_prob * 100:.2f}% phishing** → **{100 - cnn_prob * 100:.2f}% safe**")
+            st.write(f"🧠 LSTM Model: **{lstm_prob * 100:.2f}% phishing** → **{100 - lstm_prob * 100:.2f}% safe**")
+            st.write(f"🧠 XGBoost Model: **{xgb_prob * 100:.2f}% phishing** → **{100 - xgb_prob * 100:.2f}% safe**")
 
-            st.markdown("## 🧠 Final Verdict")
-            st.success(f"{verdict} — Confidence: **{confidence}%**")
+            st.markdown("### 🧠 Final Verdict")
+            if final_prob >= 0.7:
+                st.error(f"🛑 Phishing — Model is **{phishing_conf:.2f}%** confident this site is malicious.")
+                explanation = "This site strongly resembles a phishing website. Avoid entering sensitive information."
+            elif 0.4 <= final_prob < 0.7 or domain_age < 30 or content_flag:
+                st.warning(f"⚠️ Suspicious — Model is **{phishing_conf:.2f}%** confident this site may be phishing.")
+                explanation = "Some red flags were detected. Proceed with caution."
+            else:
+                st.success(f"✅ Legitimate — Model is **{legit_conf:.2f}%** confident this site is safe.")
+                explanation = "This website looks safe and clean based on the model’s analysis."
+
             st.markdown(f"💬 _Explanation_: {explanation}")
 
-            # 📝 Feedback
+            # 📝 Feedback Collection
             st.markdown("### 📝 Help us improve!")
             user_feedback = st.radio("Was this prediction correct?", ("Yes", "No"))
 
             if st.button("Submit Feedback"):
-                label = 1 if verdict == "🛑 Phishing" else 0
+                label = 1 if final_prob >= 0.7 else 0
                 correct = 1 if user_feedback == "Yes" else 0
+                true_label = label if correct else int(not label)
 
-                new_data_row = {
+                new_data = {
                     "url": url,
                     "features": features.flatten().tolist(),
                     "model_prediction": final_prob,
-                    "true_label": label if correct else int(not label)
+                    "true_label": true_label
                 }
 
                 feedback_path = "data/new_data.csv"
                 if os.path.exists(feedback_path):
                     df = pd.read_csv(feedback_path)
-                    df = pd.concat([df, pd.DataFrame([new_data_row])], ignore_index=True)
+                    df = pd.concat([df, pd.DataFrame([new_data])], ignore_index=True)
                 else:
-                    df = pd.DataFrame([new_data_row])
+                    df = pd.DataFrame([new_data])
 
                 df.to_csv(feedback_path, index=False)
                 st.success("✅ Feedback recorded! Thank you.")
 
-# 🔧 Developer Tools Section
+# -------------------------------
+# 👨‍💻 Developer Tools Section
+# -------------------------------
 st.sidebar.markdown("### 👨‍💻 Developer Tools")
 dev_mode = st.sidebar.checkbox("Enable Developer Mode")
 
@@ -247,13 +250,11 @@ if dev_mode:
                 xgb_model.fit(X_new_scaled, y_new)
                 xgb_model.save_model("xgb_model.json")
                 st.success("✅ XGBoost model updated successfully!")
-
         except Exception as e:
             st.error(f"❌ Failed to update model: {e}")
-        
-# 📥 Developer-only download for new_data.csv
-if dev_mode:
-    st.markdown("### 🗃️ Download Feedback Data")
+
+    # 📥 Download Button
+    st.markdown("### 📥 Download Feedback Data")
     csv_path = "data/new_data.csv"
     if os.path.exists(csv_path):
         with open(csv_path, "rb") as f:
