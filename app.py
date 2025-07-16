@@ -217,7 +217,9 @@ if st.button("Analyze URL"):
                     "model_prediction": final_prob,
                     "true_label": true_label
                 }
-
+                
+                # Make sure the data directory exists
+                os.makedirs("data", exist_ok=True)
                 feedback_path = "data/new_data.csv"
                 if os.path.exists(feedback_path):
                     df = pd.read_csv(feedback_path)
