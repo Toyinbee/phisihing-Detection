@@ -1,21 +1,25 @@
-# Use a Python base image
-FROM python:3.10
+# ✅ Use a slim Python 3.10 image for faster builds
+FROM python:3.10-slim
 
-# Prevent Python from writing .pyc files
-ENV PYTHONDONTWRITEBYTECODE 1
-ENV PYTHONUNBUFFERED 1
+# ✅ Environment configs to avoid .pyc files and enable streaming logs
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    STREAMLIT_SERVER_HEADLESS=true
 
-# Set working directory
+# ✅ Set working directory
 WORKDIR /app
 
-# Copy app files
+# ✅ Copy project files
 COPY . /app
 
-# Create writable volume for user feedback
-VOLUME /app/data
+# ✅ Ensure 'data' directory exists for feedback & model updates
+RUN mkdir -p /app/data
 
-# Install system dependencies
-RUN apt-get update && apt-get install -y \
+# ✅ Declare a volume for persistent data (like new_data.csv)
+VOLUME ["/app/data"]
+
+# ✅ Install system dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     curl \
     libssl-dev \
@@ -27,12 +31,12 @@ RUN apt-get update && apt-get install -y \
     libmagic-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# Upgrade pip and install Python dependencies
-RUN pip install --upgrade pip
-RUN pip install -r requirements.txt
+# ✅ Install Python dependencies
+COPY requirements.txt .
+RUN pip install --upgrade pip && pip install --no-cache-dir -r requirements.txt
 
-# Expose Streamlit's default port
+# ✅ Expose Streamlit default port
 EXPOSE 8501
 
-# Run the Streamlit app
+# ✅ Run the Streamlit app
 CMD ["streamlit", "run", "app.py", "--server.port=8501", "--server.address=0.0.0.0"]
