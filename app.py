@@ -19,6 +19,10 @@ from sklearn.preprocessing import StandardScaler
 from scipy.stats import ks_2samp
 from tensorflow.keras.models import load_model
 
+# ✅ Print TensorFlow version for Render log
+print("TensorFlow version:", tf.__version__)
+st.sidebar.info(f"TensorFlow version: {tf.__version__}")
+
 # -------------------------------
 # 📦 Load Scaler and Models
 # -------------------------------
@@ -33,8 +37,12 @@ cnn_model = load_model("cnn_model.h5", compile=False)
 lstm_model = load_model("lstm_model.h5", compile=False)
 meta_model = load_model("meta_model.h5", compile=False)
 
+@st.cache_data
+def load_baseline(path):
+    return np.load(path) if os.path.exists(path) else None
+
 baseline_path = "data/baseline_features_sampled.npy"
-baseline = np.load(baseline_path) if os.path.exists(baseline_path) else None
+baseline = load_baseline(baseline_path)
 
 # -------------------------------
 # 🔧 Utility Functions
@@ -253,6 +261,7 @@ if dev_mode:
                 y_new = np.array(df_update["true_label"])
                 X_new_scaled = scaler.transform(X_new)
 
+                os.makedirs("data", exist_ok=True)
                 xgb_model.fit(X_new_scaled, y_new)
                 xgb_model.save_model("xgb_model.json")
                 st.success("✅ XGBoost model updated successfully!")
@@ -267,7 +276,8 @@ if dev_mode:
                 label="📥 Download new_data.csv",
                 data=f,
                 file_name="new_data.csv",
-                mime="text/csv"
-    )
+                mime="text/csv")
     else:
         st.info("ℹ️ No feedback data available yet.")
+
+
