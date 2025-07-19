@@ -29,9 +29,9 @@ scaler.mean_, scaler.scale_ = params
 xgb_model = xgb.XGBClassifier()
 xgb_model.load_model("xgb_model.json")
 
-cnn_model = load_model("cnn_model.keras", compile=False)
-lstm_model = load_model("lstm_model.keras", compile=False)
-meta_model = load_model("meta_model.keras", compile=False)
+cnn_model = load_model("cnn_model.h5", compile=False)
+lstm_model = load_model("lstm_model.h5", compile=False)
+meta_model = load_model("meta_model.h5", compile=False)
 
 baseline_path = "data/baseline_features_sampled.npy"
 baseline = np.load(baseline_path) if os.path.exists(baseline_path) else None
